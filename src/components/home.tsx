@@ -210,7 +210,19 @@ const HomePage = () => {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {featuredReviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard 
+                key={review.id} 
+                reviewerName={review.user.name}
+                reviewerImage={review.user.avatar}
+                reviewDate={review.date}
+                rating={review.rating}
+                reviewTitle={review.title}
+                reviewContent={review.content}
+                productImage={review.product.image}
+                productName={review.product.name}
+                helpfulCount={review.helpfulCount}
+                commentCount={review.commentCount}
+              />
             ))}
           </div>
         </section>

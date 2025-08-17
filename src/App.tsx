@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { useRoutes, Routes, Route } from "react-router-dom";
-import Home from "./components/home";
+import HomePage from "./components/home";
 import ProductPage from "./pages/product/[id]";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
@@ -13,7 +13,7 @@ function App() {
       <div className="min-h-screen bg-background">
         <Header />
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
