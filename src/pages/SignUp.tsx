@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react";
 const SignUp = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -65,7 +66,21 @@ const SignUp = () => {
     try {
       setLoading(true);
       setError(null);
+      setSuccess(null);
 
+      // First, check if username is already taken
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', formData.username)
+        .single();
+
+      if (existingUser) {
+        setError("Username is already taken. Please choose a different one.");
+        return;
+      }
+
+      // Create the user account
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -84,15 +99,54 @@ const SignUp = () => {
 
       if (data.user && !data.session) {
         // Email confirmation required
-        setError(
-          "Please check your email and click the confirmation link to complete your registration.",
+        setSuccess(
+          "Account created successfully! Please check your email and click the confirmation link to complete your registration.",
         );
       } else if (data.session) {
-        // User is signed in immediately
-        navigate("/");
+        // User is signed in immediately - create profile manually if needed
+        try {
+          const { error: profileError } = await supabase
+            .from('users')
+            .upsert({
+              id: data.user.id,
+              username: formData.username,
+              bio: formData.bio,
+            });
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            // Don't fail the signup if profile creation fails
+          }
+        } catch (profileErr) {
+          console.error('Profile creation error:', profileErr);
+        }
+
+        setSuccess("Account created successfully! Redirecting...");
+        setTimeout(() => {
+          navigate("/");
+        }, 1500);
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      console.error('Sign up error:', err);
+      
+      // Check if Supabase is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        setError("Supabase is not configured. Please check your .env file and restart the development server.");
+        return;
+      }
+      
+      // More specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('fetch')) {
+          setError("Network error. Please check your internet connection and Supabase URL.");
+        } else if (err.message.includes('invalid')) {
+          setError("Invalid Supabase configuration. Please check your API keys.");
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -102,6 +156,7 @@ const SignUp = () => {
     try {
       setLoading(true);
       setError(null);
+      setSuccess(null);
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -114,7 +169,26 @@ const SignUp = () => {
         setError(error.message);
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      console.error('Google sign up error:', err);
+      
+      // Check if Supabase is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        setError("Supabase is not configured. Please check your .env file and restart the development server.");
+        return;
+      }
+      
+      // More specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('fetch')) {
+          setError("Network error. Please check your internet connection and Supabase URL.");
+        } else if (err.message.includes('invalid')) {
+          setError("Invalid Supabase configuration. Please check your API keys.");
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -138,6 +212,12 @@ const SignUp = () => {
               }
             >
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert variant="default">
+              <AlertDescription>{success}</AlertDescription>
             </Alert>
           )}
 
