@@ -1,0 +1,329 @@
+import React, { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { 
+  MapPin, 
+  Calendar, 
+  Star, 
+  ThumbsUp, 
+  MessageSquare,
+  Edit,
+  Settings,
+  ArrowLeft
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import ReviewCard from "@/components/ReviewCard";
+
+interface UserProfile {
+  id: string;
+  username: string;
+  bio: string;
+  location?: string;
+  created_at: string;
+  avatar_url?: string;
+  full_name?: string;
+}
+
+interface UserReview {
+  id: string;
+  product_id: string;
+  product_name: string;
+  product_image: string;
+  rating: number;
+  title: string;
+  content: string;
+  created_at: string;
+  helpful_count: number;
+  comment_count: number;
+}
+
+const Profile = () => {
+  const { username } = useParams<{ username: string }>();
+  const { user: currentUser } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [reviews, setReviews] = useState<UserReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('username', username)
+          .single();
+
+        if (profileError) {
+          setError('User not found');
+          return;
+        }
+
+        // Set profile data (auth metadata will be available if user is viewing their own profile)
+        setProfile({
+          ...profileData,
+          avatar_url: currentUser?.id === profileData.id ? currentUser.user_metadata?.avatar_url : undefined,
+          full_name: currentUser?.id === profileData.id ? currentUser.user_metadata?.full_name : profileData.username,
+          location: currentUser?.id === profileData.id ? currentUser.user_metadata?.location || 'Location not set' : 'Location not set'
+        });
+
+        // Check if this is the current user's profile
+        setIsOwnProfile(currentUser?.id === profileData.id);
+
+        // Fetch user's reviews
+        const { data: reviewsData, error: reviewsError } = await supabase
+          .from('reviews')
+          .select(`
+            id,
+            product_id,
+            rating,
+            title,
+            content,
+            created_at,
+            helpful_count,
+            comment_count,
+            products (
+              name,
+              image_url
+            )
+          `)
+          .eq('user_id', profileData.id)
+          .order('created_at', { ascending: false });
+
+        if (reviewsError) {
+          console.error('Error fetching reviews:', reviewsError);
+          // Don't fail the profile load if reviews fail
+          setReviews([]);
+        } else {
+          const formattedReviews = reviewsData?.map(review => ({
+            id: review.id,
+            product_id: review.product_id,
+            product_name: review.products?.name || 'Unknown Product',
+            product_image: review.products?.image_url || 'https://via.placeholder.com/150',
+            rating: review.rating,
+            title: review.title,
+            content: review.content,
+            created_at: review.created_at,
+            helpful_count: review.helpful_count || 0,
+            comment_count: review.comment_count || 0
+          })) || [];
+          
+          setReviews(formattedReviews);
+        }
+
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (username) {
+      fetchProfile();
+    }
+  }, [username, currentUser]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-destructive mb-4">Profile Not Found</h1>
+          <p className="text-muted-foreground mb-4">{error || 'The user you are looking for does not exist.'}</p>
+          <Link to="/">
+            <Button>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getAverageRating = () => {
+    if (reviews.length === 0) return 0;
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return (total / reviews.length).toFixed(1);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        {/* Back Button */}
+        <div className="mb-6">
+          <Link to="/">
+            <Button variant="ghost" className="mb-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+
+        {/* Profile Header */}
+        <Card className="mb-8">
+          <CardContent className="p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              {/* Avatar */}
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={profile.avatar_url} alt={profile.username} />
+                <AvatarFallback className="text-2xl">
+                  {profile.full_name?.charAt(0) || profile.username.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Profile Info */}
+              <div className="flex-1">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold mb-2">
+                      {profile.full_name || profile.username}
+                    </h1>
+                    <div className="flex items-center gap-4 text-muted-foreground mb-3">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        <span>{profile.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>Joined {formatDate(profile.created_at)}</span>
+                      </div>
+                    </div>
+                    {profile.bio && (
+                      <p className="text-muted-foreground max-w-2xl">{profile.bio}</p>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {isOwnProfile ? (
+                      <>
+                        <Button variant="outline">
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Profile
+                        </Button>
+                        <Button variant="outline">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Settings
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="outline">Follow</Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-2xl font-bold text-primary">{reviews.length}</div>
+              <div className="text-sm text-muted-foreground">Reviews</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-2xl font-bold text-primary">{getAverageRating()}</div>
+              <div className="text-sm text-muted-foreground">Avg Rating</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-2xl font-bold text-primary">
+                {reviews.reduce((sum, review) => sum + review.helpful_count, 0)}
+              </div>
+              <div className="text-sm text-muted-foreground">Helpful Votes</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-2xl font-bold text-primary">
+                {reviews.reduce((sum, review) => sum + review.comment_count, 0)}
+              </div>
+              <div className="text-sm text-muted-foreground">Comments</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Reviews</h2>
+            <Badge variant="secondary">{reviews.length} reviews</Badge>
+          </div>
+
+          {reviews.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="text-muted-foreground">
+                  <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg mb-2">No reviews yet</p>
+                  <p className="text-sm">
+                    {isOwnProfile 
+                      ? "Start writing reviews to see them here!" 
+                      : "This user hasn't written any reviews yet."
+                    }
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+                             {reviews.map((review) => (
+                 <ReviewCard
+                   key={review.id}
+                   reviewerName={profile.full_name || profile.username}
+                   reviewerUsername={profile.username}
+                   reviewerImage={profile.avatar_url}
+                   reviewDate={formatDate(review.created_at)}
+                   rating={review.rating}
+                   reviewTitle={review.title}
+                   reviewContent={review.content}
+                   productImage={review.product_image}
+                   productName={review.product_name}
+                   helpfulCount={review.helpful_count}
+                   commentCount={review.comment_count}
+                 />
+               ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;

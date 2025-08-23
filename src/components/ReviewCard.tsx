@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 
 interface ReviewCardProps {
   reviewerName?: string;
+  reviewerUsername?: string;
   reviewerImage?: string;
   reviewDate?: string;
   rating?: number;
@@ -21,6 +23,7 @@ interface ReviewCardProps {
 
 const ReviewCard = ({
   reviewerName = "Jane Smith",
+  reviewerUsername = "janesmith",
   reviewerImage = "https://api.dicebear.com/7.x/avataaars/svg?seed=Jane",
   reviewDate = "May 15, 2023",
   rating = 4,
@@ -38,11 +41,17 @@ const ReviewCard = ({
         <div className="flex items-start gap-4">
           {/* Reviewer info */}
           <div className="flex flex-col items-center">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={reviewerImage} alt={reviewerName} />
-              <AvatarFallback>{reviewerName.substring(0, 2)}</AvatarFallback>
-            </Avatar>
-            <span className="text-xs text-gray-500 mt-1">{reviewerName}</span>
+            <Link to={`/profile/${reviewerUsername}`}>
+              <Avatar className="h-12 w-12 hover:opacity-80 transition-opacity cursor-pointer">
+                <AvatarImage src={reviewerImage} alt={reviewerName} />
+                <AvatarFallback>{reviewerName.substring(0, 2)}</AvatarFallback>
+              </Avatar>
+            </Link>
+            <Link to={`/profile/${reviewerUsername}`}>
+              <span className="text-xs text-gray-500 mt-1 hover:text-primary transition-colors cursor-pointer">
+                {reviewerName}
+              </span>
+            </Link>
           </div>
 
           {/* Review content */}
