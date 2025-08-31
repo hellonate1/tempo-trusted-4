@@ -6,6 +6,8 @@ import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Profile from "./pages/Profile";
 import ProfileDebug from "./pages/ProfileDebug";
+import WriteReview from "./pages/WriteReview";
+import DatabaseTest from "./components/DatabaseTest";
 import DebugProfile from "./components/DebugProfile";
 import Header from "./components/Header";
 import routes from "tempo-routes";
@@ -22,6 +24,8 @@ function App() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/profile/:username" element={<Profile />} />
           <Route path="/profile-debug/:username" element={<ProfileDebug />} />
+          <Route path="/write-review" element={<WriteReview />} />
+          <Route path="/database-test" element={<DatabaseTest />} />
           <Route path="/debug-profile" element={<DebugProfile />} />
         </Routes>
         {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}

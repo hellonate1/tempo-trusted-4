@@ -14,19 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const Header = () => {
-  const { user, signOut, isAuthenticated } = useAuth();
-
-  // Categories for navigation
-  const categories = [
-    "Electronics",
-    "Home & Kitchen",
-    "Fashion",
-    "Beauty",
-    "Books",
-    "Sports",
-    "Toys",
-    "Automotive",
-  ];
+  const { user, signOut, isAuthenticated, loading: authLoading } = useAuth();
 
   return (
     <>
@@ -37,33 +25,6 @@ const Header = () => {
             <Link to="/" className="text-2xl font-bold text-primary">
               ReviewHub
             </Link>
-            <nav className="hidden md:flex space-x-4">
-              {categories.slice(0, 4).map((category) => (
-                <Link
-                  key={category}
-                  to={`/category/${category.toLowerCase().replace(" & ", "-")}`}
-                  className="text-sm text-muted-foreground hover:text-foreground"
-                >
-                  {category}
-                </Link>
-              ))}
-              <div className="relative group">
-                <button className="text-sm text-muted-foreground hover:text-foreground">
-                  More
-                </button>
-                <div className="absolute left-0 mt-2 w-48 bg-background border rounded-md shadow-lg hidden group-hover:block">
-                  {categories.slice(4).map((category) => (
-                    <Link
-                      key={category}
-                      to={`/category/${category.toLowerCase().replace(" & ", "-")}`}
-                      className="block px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    >
-                      {category}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </nav>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -75,11 +36,13 @@ const Header = () => {
               />
               <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
-            {isAuthenticated ? (
+            {!authLoading && isAuthenticated ? (
               <>
-                <Button variant="outline" className="hidden md:inline-flex">
-                  Write a Review
-                </Button>
+                <Link to="/write-review">
+                  <Button variant="outline" className="hidden md:inline-flex">
+                    Write a Review
+                  </Button>
+                </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -114,11 +77,13 @@ const Header = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
-            ) : (
+            ) : !authLoading ? (
               <>
-                <Button variant="outline" className="hidden md:inline-flex">
-                  Write a Review
-                </Button>
+                <Link to="/signin">
+                  <Button variant="outline" className="hidden md:inline-flex">
+                    Write a Review
+                  </Button>
+                </Link>
                 <div className="hidden md:flex space-x-2">
                   <Link to="/signup">
                     <Button variant="outline">Sign Up</Button>
@@ -128,7 +93,7 @@ const Header = () => {
                   </Link>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
