@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Search, User, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,33 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const Header = () => {
   const { user, signOut, isAuthenticated, loading: authLoading } = useAuth();
+  const [userProfile, setUserProfile] = useState<{ username: string } | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user && isAuthenticated) {
+        try {
+          const { data: profile, error } = await supabase
+            .from('users')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching user profile:', error);
+          } else {
+            setUserProfile(profile);
+          }
+        } catch (err) {
+          console.error('Error fetching user profile:', err);
+        }
+      } else {
+        setUserProfile(null);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user, isAuthenticated]);
 
   return (
     <>
@@ -62,7 +90,10 @@ const Header = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem asChild>
-                      <Link to={`/profile/elephentshoes`}>
+                      <Link 
+                        to={userProfile?.username ? `/profile/${userProfile.username}` : '#'}
+                        className={!userProfile?.username ? 'pointer-events-none opacity-50' : ''}
+                      >
                         <User className="mr-2 h-4 w-4" />
                         Profile
                       </Link>

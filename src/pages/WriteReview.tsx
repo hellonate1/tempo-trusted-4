@@ -36,6 +36,7 @@ const WriteReview = () => {
   
   // Form state
   const [productName, setProductName] = useState("");
+  const [brandName, setBrandName] = useState("");
   const [reviewContent, setReviewContent] = useState("");
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -221,6 +222,11 @@ const WriteReview = () => {
       return;
     }
 
+    if (!brandName.trim()) {
+      setError("Please enter a brand name");
+      return;
+    }
+
 
     if (!reviewContent.trim()) {
       setError("Please enter your review");
@@ -277,6 +283,7 @@ const WriteReview = () => {
           .from('products')
           .insert({
             name: finalProductName,
+            brand: brandName,
             category: 'General',
             image_url: productImageUrl
           })
@@ -449,8 +456,17 @@ const WriteReview = () => {
                   </div>
                 </div>
 
-
-
+                {/* Brand Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="brand-name">Brand Name *</Label>
+                  <Input
+                    id="brand-name"
+                    placeholder="Enter the brand name..."
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    required
+                  />
+                </div>
 
                 {/* Rating */}
                 <div className="space-y-2">

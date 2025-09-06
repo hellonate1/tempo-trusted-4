@@ -27,6 +27,9 @@ interface UserProfile {
   created_at: string;
   avatar_url?: string;
   full_name?: string;
+  follower_count?: number;
+  following_count?: number;
+  is_following?: boolean;
 }
 
 interface UserReview {
@@ -51,6 +54,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -70,12 +74,25 @@ const Profile = () => {
           return;
         }
 
+        // Fetch follower and following counts
+        const [followerCountResult, followingCountResult, isFollowingResult] = await Promise.all([
+          supabase.rpc('get_follower_count', { user_id: profileData.id }),
+          supabase.rpc('get_following_count', { user_id: profileData.id }),
+          currentUser ? supabase.rpc('is_following', { 
+            follower_id: currentUser.id, 
+            following_id: profileData.id 
+          }) : Promise.resolve({ data: false })
+        ]);
+
         // Set profile data (auth metadata will be available if user is viewing their own profile)
         setProfile({
           ...profileData,
           avatar_url: currentUser?.id === profileData.id ? currentUser.user_metadata?.avatar_url : undefined,
           full_name: currentUser?.id === profileData.id ? currentUser.user_metadata?.full_name : profileData.username,
-          location: currentUser?.id === profileData.id ? currentUser.user_metadata?.location || 'Location not set' : 'Location not set'
+          location: currentUser?.id === profileData.id ? currentUser.user_metadata?.location || 'Location not set' : 'Location not set',
+          follower_count: followerCountResult.data || 0,
+          following_count: followingCountResult.data || 0,
+          is_following: isFollowingResult.data || false
         });
 
         // Check if this is the current user's profile
@@ -179,6 +196,53 @@ const Profile = () => {
     return (total / reviews.length).toFixed(1);
   };
 
+  const handleFollow = async () => {
+    if (!currentUser || !profile || isOwnProfile) return;
+
+    try {
+      setFollowLoading(true);
+      
+      if (profile.is_following) {
+        // Unfollow
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', currentUser.id)
+          .eq('following_id', profile.id);
+
+        if (error) throw error;
+
+        // Update local state
+        setProfile(prev => prev ? {
+          ...prev,
+          is_following: false,
+          follower_count: (prev.follower_count || 0) - 1
+        } : null);
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('follows')
+          .insert({
+            follower_id: currentUser.id,
+            following_id: profile.id
+          });
+
+        if (error) throw error;
+
+        // Update local state
+        setProfile(prev => prev ? {
+          ...prev,
+          is_following: true,
+          follower_count: (prev.follower_count || 0) + 1
+        } : null);
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -217,6 +281,12 @@ const Profile = () => {
                         <span>{profile.location}</span>
                       </div>
                       <div className="flex items-center gap-1">
+                        <span className="font-medium">{profile.follower_count || 0} followers</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">{profile.following_count || 0} following</span>
+                      </div>
+                      <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
                         <span>Joined {formatDate(profile.created_at)}</span>
                       </div>
@@ -240,7 +310,20 @@ const Profile = () => {
                         </Button>
                       </>
                     ) : (
-                      <Button variant="outline">Follow</Button>
+                      <Button 
+                        variant={profile.is_following ? "outline" : "default"}
+                        onClick={handleFollow}
+                        disabled={followLoading}
+                      >
+                        {followLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                            {profile.is_following ? 'Unfollowing...' : 'Following...'}
+                          </>
+                        ) : (
+                          profile.is_following ? 'Unfollow' : 'Follow'
+                        )}
+                      </Button>
                     )}
                   </div>
                 </div>
