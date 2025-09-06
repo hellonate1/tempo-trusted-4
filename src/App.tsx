@@ -9,6 +9,7 @@ import ProfileDebug from "./pages/ProfileDebug";
 import WriteReview from "./pages/WriteReview";
 import DatabaseTest from "./components/DatabaseTest";
 import DebugProfile from "./components/DebugProfile";
+import CommentTest from "./components/CommentTest";
 import Header from "./components/Header";
 import routes from "tempo-routes";
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/write-review" element={<WriteReview />} />
           <Route path="/database-test" element={<DatabaseTest />} />
           <Route path="/debug-profile" element={<DebugProfile />} />
+          <Route path="/comment-test" element={<CommentTest />} />
         </Routes>
         {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
       </div>

@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-To enable the sign up functionality in your ReviewHub application, you need to set up Supabase and configure the environment variables.
+To enable the sign up functionality in your TrustedGoods application, you need to set up Supabase and configure the environment variables.
 
 ## Step 1: Create a Supabase Project
 

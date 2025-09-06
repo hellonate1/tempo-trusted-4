@@ -39,6 +39,7 @@ interface UserReview {
   content: string;
   created_at: string;
   helpful_count: number;
+  not_helpful_count: number;
   comment_count: number;
 }
 
@@ -91,6 +92,7 @@ const Profile = () => {
             content,
             created_at,
             helpful_count,
+            not_helpful_count,
             comment_count,
             products (
               name,
@@ -115,6 +117,7 @@ const Profile = () => {
             content: review.content,
             created_at: review.created_at,
             helpful_count: review.helpful_count || 0,
+            not_helpful_count: review.not_helpful_count || 0,
             comment_count: review.comment_count || 0
           })) || [];
           
@@ -305,6 +308,7 @@ const Profile = () => {
                              {reviews.map((review) => (
                  <ReviewCard
                    key={review.id}
+                   reviewId={review.id}
                    reviewerName={profile.full_name || profile.username}
                    reviewerUsername={profile.username}
                    reviewerImage={profile.avatar_url}
@@ -315,6 +319,7 @@ const Profile = () => {
                    productImage={review.product_image}
                    productName={review.product_name}
                    helpfulCount={review.helpful_count}
+                   notHelpfulCount={review.not_helpful_count || 0}
                    commentCount={review.comment_count}
                  />
                ))}

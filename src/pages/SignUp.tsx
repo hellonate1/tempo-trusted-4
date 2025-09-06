@@ -198,7 +198,7 @@ const SignUp = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Join ReviewHub</CardTitle>
+          <CardTitle className="text-2xl font-bold">Join TrustedGoods</CardTitle>
           <CardDescription>
             Create your account to start writing reviews and connecting with the
             community

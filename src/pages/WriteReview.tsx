@@ -17,6 +17,7 @@ import {
   Camera,
   Loader2
 } from "lucide-react";
+import heic2any from "heic2any";
 
 interface Product {
   id: string;
@@ -35,8 +36,6 @@ const WriteReview = () => {
   
   // Form state
   const [productName, setProductName] = useState("");
-  const [productDescription, setProductDescription] = useState("");
-  const [reviewTitle, setReviewTitle] = useState("");
   const [reviewContent, setReviewContent] = useState("");
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -91,26 +90,71 @@ const WriteReview = () => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Handle image upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle image upload with HEIC conversion
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imageFiles = files.filter(file => 
+      file.type.startsWith('image/') || 
+      file.name.toLowerCase().endsWith('.heic') || 
+      file.name.toLowerCase().endsWith('.heif')
+    );
     
     if (uploadedImages.length + imageFiles.length > 5) {
       setError("You can upload a maximum of 5 images");
       return;
     }
 
-    setUploadedImages(prev => [...prev, ...imageFiles]);
-    
-    // Create preview URLs
-    imageFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImageUrls(prev => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
+    setError(null);
+    setLoading(true);
+
+    try {
+      const processedFiles: File[] = [];
+
+      for (const file of imageFiles) {
+        // Check if it's a HEIC/HEIF file
+        if (file.name.toLowerCase().endsWith('.heic') || 
+            file.name.toLowerCase().endsWith('.heif') ||
+            file.type === 'image/heic' || 
+            file.type === 'image/heif') {
+          
+          console.log('Converting HEIC file:', file.name);
+          
+          // Convert HEIC to JPEG
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.8
+          }) as Blob;
+          
+          // Create a new File object with the converted blob
+          const convertedFile = new File([convertedBlob], 
+            file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+            { type: 'image/jpeg' }
+          );
+          
+          processedFiles.push(convertedFile);
+        } else {
+          processedFiles.push(file);
+        }
+      }
+
+      setUploadedImages(prev => [...prev, ...processedFiles]);
+      
+      // Create preview URLs
+      processedFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImageUrls(prev => [...prev, e.target?.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+
+    } catch (err) {
+      console.error('Error processing images:', err);
+      setError('Error processing images. Please try again with different files.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -161,7 +205,6 @@ const WriteReview = () => {
     console.log('User:', user);
     console.log('Form data:', {
       productName: selectedProduct ? selectedProduct.name : searchQuery,
-      reviewTitle,
       reviewContent,
       rating
     });
@@ -178,10 +221,6 @@ const WriteReview = () => {
       return;
     }
 
-    if (!reviewTitle.trim()) {
-      setError("Please enter a review title");
-      return;
-    }
 
     if (!reviewContent.trim()) {
       setError("Please enter your review");
@@ -209,13 +248,37 @@ const WriteReview = () => {
       } else {
         // Create new product
         console.log('Creating new product...');
+        
+        // Upload first image to storage if available
+        let productImageUrl = null;
+        if (uploadedImages.length > 0) {
+          const firstImage = uploadedImages[0];
+          const fileExt = firstImage.name.split('.').pop();
+          const fileName = `product_${Date.now()}.${fileExt}`;
+          const filePath = `product-images/${fileName}`;
+          
+          try {
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('review-images')
+              .upload(filePath, firstImage);
+            
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage
+                .from('review-images')
+                .getPublicUrl(filePath);
+              productImageUrl = urlData.publicUrl;
+            }
+          } catch (err) {
+            console.error('Product image upload failed:', err);
+          }
+        }
+        
         const { data: productData, error: productError } = await supabase
           .from('products')
           .insert({
             name: finalProductName,
-            description: productDescription,
             category: 'General',
-            image_url: imageUrls[0] || null
+            image_url: productImageUrl
           })
           .select()
           .single();
@@ -240,7 +303,6 @@ const WriteReview = () => {
           user_id: user.id,
           product_id: productId,
           rating: rating,
-          title: reviewTitle,
           content: reviewContent
         })
         .select()
@@ -389,29 +451,6 @@ const WriteReview = () => {
 
 
 
-                {/* Product Description */}
-                <div className="space-y-2">
-                  <Label htmlFor="description">Product Description (optional)</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Brief description of the product..."
-                    value={productDescription}
-                    onChange={(e) => setProductDescription(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                {/* Review Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">Review Title *</Label>
-                  <Input
-                    id="title"
-                    placeholder="Summarize your review in a few words..."
-                    value={reviewTitle}
-                    onChange={(e) => setReviewTitle(e.target.value)}
-                    maxLength={100}
-                  />
-                </div>
 
                 {/* Rating */}
                 <div className="space-y-2">
@@ -464,7 +503,7 @@ const WriteReview = () => {
                     <input
                       type="file"
                       multiple
-                      accept="image/*"
+                      accept="image/*,.heic,.heif"
                       onChange={handleImageUpload}
                       className="hidden"
                       id="image-upload"
@@ -472,7 +511,7 @@ const WriteReview = () => {
                     <label htmlFor="image-upload" className="cursor-pointer">
                       <Camera className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                       <p className="text-sm text-muted-foreground">
-                        Click to upload images (max 5)
+                        Click to upload images (max 5) - Supports JPG, PNG, HEIC
                       </p>
                     </label>
                   </div>
