@@ -13,11 +13,11 @@ import {
   ThumbsUp, 
   MessageSquare,
   Edit,
-  Settings,
   ArrowLeft
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import ReviewCard from "@/components/ReviewCard";
+import EditProfile from "@/components/EditProfile";
 
 interface UserProfile {
   id: string;
@@ -36,6 +36,7 @@ interface UserReview {
   id: string;
   product_id: string;
   product_name: string;
+  product_brand: string;
   product_image: string;
   rating: number;
   title: string;
@@ -44,6 +45,7 @@ interface UserReview {
   helpful_count: number;
   not_helpful_count: number;
   comment_count: number;
+  images: string[];
 }
 
 const Profile = () => {
@@ -55,9 +57,9 @@ const Profile = () => {
   const [error, setError] = useState<string | null>(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
+  const fetchProfile = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -111,8 +113,10 @@ const Profile = () => {
             helpful_count,
             not_helpful_count,
             comment_count,
+            images,
             products (
               name,
+              brand,
               image_url
             )
           `)
@@ -128,6 +132,7 @@ const Profile = () => {
             id: review.id,
             product_id: review.product_id,
             product_name: review.products?.name || 'Unknown Product',
+            product_brand: review.products?.brand || 'Unknown Brand',
             product_image: review.products?.image_url || 'https://via.placeholder.com/150',
             rating: review.rating,
             title: review.title,
@@ -135,7 +140,8 @@ const Profile = () => {
             created_at: review.created_at,
             helpful_count: review.helpful_count || 0,
             not_helpful_count: review.not_helpful_count || 0,
-            comment_count: review.comment_count || 0
+            comment_count: review.comment_count || 0,
+            images: review.images || []
           })) || [];
           
           setReviews(formattedReviews);
@@ -149,6 +155,7 @@ const Profile = () => {
       }
     };
 
+  useEffect(() => {
     if (username) {
       fetchProfile();
     }
@@ -190,11 +197,6 @@ const Profile = () => {
     });
   };
 
-  const getAverageRating = () => {
-    if (reviews.length === 0) return 0;
-    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
-    return (total / reviews.length).toFixed(1);
-  };
 
   const handleFollow = async () => {
     if (!currentUser || !profile || isOwnProfile) return;
@@ -240,6 +242,17 @@ const Profile = () => {
       console.error('Error toggling follow:', error);
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleProfileUpdated = () => {
+    // Refresh the profile data
+    if (username) {
+      fetchProfile();
     }
   };
 
@@ -299,16 +312,10 @@ const Profile = () => {
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     {isOwnProfile ? (
-                      <>
-                        <Button variant="outline">
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Profile
-                        </Button>
-                        <Button variant="outline">
-                          <Settings className="mr-2 h-4 w-4" />
-                          Settings
-                        </Button>
-                      </>
+                      <Button variant="outline" onClick={handleEditProfile}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Profile
+                      </Button>
                     ) : (
                       <Button 
                         variant={profile.is_following ? "outline" : "default"}
@@ -333,25 +340,11 @@ const Profile = () => {
         </Card>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <Card>
             <CardContent className="p-6 text-center">
               <div className="text-2xl font-bold text-primary">{reviews.length}</div>
               <div className="text-sm text-muted-foreground">Reviews</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="text-2xl font-bold text-primary">{getAverageRating()}</div>
-              <div className="text-sm text-muted-foreground">Avg Rating</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="text-2xl font-bold text-primary">
-                {reviews.reduce((sum, review) => sum + review.helpful_count, 0)}
-              </div>
-              <div className="text-sm text-muted-foreground">Helpful Votes</div>
             </CardContent>
           </Card>
           <Card>
@@ -401,6 +394,8 @@ const Profile = () => {
                    reviewContent={review.content}
                    productImage={review.product_image}
                    productName={review.product_name}
+                   productBrand={review.product_brand}
+                   reviewImages={review.images}
                    helpfulCount={review.helpful_count}
                    notHelpfulCount={review.not_helpful_count || 0}
                    commentCount={review.comment_count}
@@ -410,6 +405,22 @@ const Profile = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {profile && (
+        <EditProfile
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onProfileUpdated={handleProfileUpdated}
+          currentProfile={{
+            username: profile.username,
+            bio: profile.bio,
+            full_name: profile.full_name,
+            location: profile.location,
+            avatar_url: profile.avatar_url,
+          }}
+        />
+      )}
     </div>
   );
 };

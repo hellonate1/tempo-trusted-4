@@ -31,12 +31,14 @@ const WriteReview = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
   // Form state
   const [productName, setProductName] = useState("");
   const [brandName, setBrandName] = useState("");
+  const [reviewTitle, setReviewTitle] = useState("");
   const [reviewContent, setReviewContent] = useState("");
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -106,7 +108,7 @@ const WriteReview = () => {
     }
 
     setError(null);
-    setLoading(true);
+    setImageUploadLoading(true);
 
     try {
       const processedFiles: File[] = [];
@@ -154,7 +156,7 @@ const WriteReview = () => {
       console.error('Error processing images:', err);
       setError('Error processing images. Please try again with different files.');
     } finally {
-      setLoading(false);
+      setImageUploadLoading(false);
     }
   };
 
@@ -227,6 +229,11 @@ const WriteReview = () => {
       return;
     }
 
+
+    if (!reviewTitle.trim()) {
+      setError("Please enter a review title");
+      return;
+    }
 
     if (!reviewContent.trim()) {
       setError("Please enter your review");
@@ -302,7 +309,7 @@ const WriteReview = () => {
         console.log('New product created with ID:', productId);
       }
 
-      // Create the review
+      // Create the review first (without images)
       console.log('Creating review...');
       const { data: reviewData, error: reviewError } = await supabase
         .from('reviews')
@@ -310,6 +317,7 @@ const WriteReview = () => {
           user_id: user.id,
           product_id: productId,
           rating: rating,
+          title: reviewTitle,
           content: reviewContent
         })
         .select()
@@ -323,11 +331,22 @@ const WriteReview = () => {
         return;
       }
 
-      // Upload images if any
+      // Upload images and update review with image URLs
       if (uploadedImages.length > 0) {
+        console.log('Uploading images...');
         const imageUrls = await uploadImagesToStorage(reviewData.id);
-        // You could store these URLs in a separate review_images table
         console.log('Uploaded images:', imageUrls);
+
+        // Update the review with the image URLs
+        const { error: updateError } = await supabase
+          .from('reviews')
+          .update({ images: imageUrls })
+          .eq('id', reviewData.id);
+
+        if (updateError) {
+          console.error('Error updating review with images:', updateError);
+          // Don't fail the whole operation, just log the error
+        }
       }
 
       setSuccess("Review submitted successfully!");
@@ -347,17 +366,14 @@ const WriteReview = () => {
 
   const selectProduct = (product: Product) => {
     setSelectedProduct(product);
-    setProductName(product.name);
-    setProductDescription(product.description || "");
     setSearchQuery(product.name);
     setShowSearchResults(false);
   };
 
   const clearSelectedProduct = () => {
     setSelectedProduct(null);
-    setProductName("");
-    setProductDescription("");
     setSearchQuery("");
+    setShowSearchResults(false);
   };
 
   // Show loading while checking authentication
@@ -415,26 +431,33 @@ const WriteReview = () => {
                       id="product-search"
                       placeholder="Search for a product or enter a new one..."
                       value={searchQuery}
+                      autoComplete="off"
                       onChange={(e) => {
                         setSearchQuery(e.target.value);
                         setShowSearchResults(true);
+                        // Clear selection if user starts typing
+                        if (selectedProduct && e.target.value !== selectedProduct.name) {
+                          setSelectedProduct(null);
+                        }
                       }}
                       onFocus={() => setShowSearchResults(true)}
+                      onBlur={() => {
+                        // Delay hiding to allow click on dropdown items
+                        setTimeout(() => setShowSearchResults(false), 150);
+                      }}
                     />
-                    
                     {selectedProduct && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Badge variant="secondary">Selected: {selectedProduct.name}</Badge>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearSelectedProduct}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                        onClick={clearSelectedProduct}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     )}
+                    
 
                     {showSearchResults && searchResults.length > 0 && (
                       <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-y-auto">
@@ -443,12 +466,10 @@ const WriteReview = () => {
                             key={product.id}
                             type="button"
                             className="w-full text-left px-4 py-2 hover:bg-accent hover:text-accent-foreground"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => selectProduct(product)}
                           >
                             <div className="font-medium">{product.name}</div>
-                            {product.category && (
-                              <div className="text-sm text-muted-foreground">{product.category}</div>
-                            )}
                           </button>
                         ))}
                       </div>
@@ -494,6 +515,18 @@ const WriteReview = () => {
                       {rating > 0 ? `${rating} star${rating > 1 ? 's' : ''}` : 'Select rating'}
                     </span>
                   </div>
+                </div>
+
+                {/* Review Title */}
+                <div className="space-y-2">
+                  <Label htmlFor="review-title">Review Title *</Label>
+                  <Input
+                    id="review-title"
+                    placeholder="Give your review a title..."
+                    value={reviewTitle}
+                    onChange={(e) => setReviewTitle(e.target.value)}
+                    required
+                  />
                 </div>
 
                 {/* Review Content */}
@@ -558,7 +591,7 @@ const WriteReview = () => {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || imageUploadLoading}
                   className="w-full"
                   size="lg"
                 >
@@ -566,6 +599,11 @@ const WriteReview = () => {
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Submitting Review...
+                    </>
+                  ) : imageUploadLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing Images...
                     </>
                   ) : (
                     "Submit Review"

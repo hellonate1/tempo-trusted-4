@@ -35,9 +35,11 @@ const HomePage = () => {
             helpful_count,
             not_helpful_count,
             comment_count,
+            images,
             products (
               id,
               name,
+              brand,
               image_url
             )
           `)
@@ -181,6 +183,8 @@ const HomePage = () => {
                 reviewContent={review.content}
                   productImage={review.products?.image_url || null}
                   productName={review.products?.name || 'Unknown Product'}
+                  productBrand={review.products?.brand || 'Unknown Brand'}
+                  reviewImages={review.images || []}
                   helpfulCount={review.helpful_count || 0}
                   notHelpfulCount={review.not_helpful_count || 0}
                   commentCount={review.comment_count || 0}

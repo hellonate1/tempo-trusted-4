@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ThumbsUp, ThumbsDown, MessageSquare, Send, X } from "lucide-react";
+import { ThumbsUp, ThumbsDown, MessageSquare, Send, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -21,6 +21,8 @@ interface ReviewCardProps {
   reviewContent?: string;
   productImage?: string;
   productName?: string;
+  productBrand?: string;
+  reviewImages?: string[];
   helpfulCount?: number;
   notHelpfulCount?: number;
   commentCount?: number;
@@ -54,6 +56,8 @@ const ReviewCard = ({
   reviewContent = "This product exceeded my expectations in many ways. The quality is excellent and it works exactly as described. However, there are a few minor issues that could be improved in future versions.",
   productImage = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&q=80",
   productName = "Wireless Headphones",
+  productBrand = "Unknown Brand",
+  reviewImages = [],
   helpfulCount = 24,
   notHelpfulCount = 3,
   commentCount = 5,
@@ -65,6 +69,7 @@ const ReviewCard = ({
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Load user's current vote
   useEffect(() => {
@@ -273,100 +278,170 @@ const ReviewCard = ({
     return `https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=150&fit=crop&crop=center`;
   };
 
+  // Carousel navigation functions
+  const nextImage = () => {
+    if (reviewImages.length > 0) {
+      setCurrentImageIndex((prev) => (prev + 1) % reviewImages.length);
+    }
+  };
+
+  const prevImage = () => {
+    if (reviewImages.length > 0) {
+      setCurrentImageIndex((prev) => (prev - 1 + reviewImages.length) % reviewImages.length);
+    }
+  };
+
+  // Get the current image to display (review images take priority over product image)
+  const getCurrentImage = () => {
+    if (reviewImages.length > 0) {
+      return reviewImages[currentImageIndex];
+    }
+    return productImage;
+  };
+
+  const hasMultipleImages = reviewImages.length > 1;
+
   return (
-    <Card className="w-full max-w-[800px] bg-white overflow-hidden">
+    <Card className="w-full max-w-[900px] bg-white overflow-hidden">
       <CardContent className="p-6">
-        <div className="flex items-start gap-6">
-          {/* Reviewer info */}
-          <div className="flex flex-col items-center flex-shrink-0">
-            <Link to={`/profile/${reviewerUsername}`}>
-              <Avatar className="h-12 w-12 hover:opacity-80 transition-opacity cursor-pointer">
-                <AvatarImage src={reviewerImage} alt={reviewerName} />
-                <AvatarFallback>{reviewerName.substring(0, 2)}</AvatarFallback>
-              </Avatar>
-            </Link>
-            <Link to={`/profile/${reviewerUsername}`}>
-              <span className="text-xs text-gray-500 mt-1 hover:text-primary transition-colors cursor-pointer">
-                {reviewerName}
-              </span>
-            </Link>
-          </div>
-
-          {/* Review content */}
+        <div className="flex gap-6">
+          {/* Left side - Reviewer info and Review content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex">
-                {[...Array(5)].map((_, i) => (
-                  <span
-                    key={i}
-                    className={`text-lg ${i < rating ? "text-yellow-500" : "text-gray-300"}`}
-                  >
-                    ★
+            <div className="flex items-start gap-4 mb-4">
+              {/* Reviewer info */}
+              <div className="flex flex-col items-center flex-shrink-0">
+                <Link to={`/profile/${reviewerUsername}`}>
+                  <Avatar className="h-12 w-12 hover:opacity-80 transition-opacity cursor-pointer">
+                    <AvatarImage src={reviewerImage} alt={reviewerName} />
+                    <AvatarFallback>{reviewerName.substring(0, 2)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <Link to={`/profile/${reviewerUsername}`}>
+                  <span className="text-xs text-gray-500 mt-1 hover:text-primary transition-colors cursor-pointer">
+                    {reviewerName}
                   </span>
-                ))}
+                </Link>
               </div>
-              <span className="text-sm text-gray-500">{reviewDate}</span>
-            </div>
 
-            <h3 className="font-semibold text-lg mb-2">{reviewTitle}</h3>
-            <p className="text-gray-700 text-sm mb-4 line-clamp-3">
-              {reviewContent}
-            </p>
+              {/* Review header */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <span
+                        key={i}
+                        className={`text-lg ${i < rating ? "text-yellow-500" : "text-gray-300"}`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-500">{reviewDate}</span>
+                </div>
 
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex items-center gap-1 ${
-                  currentVote?.vote_type === 'up' 
-                    ? 'text-blue-600 bg-blue-50' 
-                    : 'text-gray-600 hover:text-blue-600'
-                }`}
-                onClick={() => handleVote('up')}
-                disabled={!isAuthenticated || loading}
-              >
-                <ThumbsUp className="h-4 w-4" />
-                <span>{helpfulCount}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex items-center gap-1 ${
-                  currentVote?.vote_type === 'down' 
-                    ? 'text-red-600 bg-red-50' 
-                    : 'text-gray-600 hover:text-red-600'
-                }`}
-                onClick={() => handleVote('down')}
-                disabled={!isAuthenticated || loading}
-              >
-                <ThumbsDown className="h-4 w-4" />
-                <span>{notHelpfulCount}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-1 text-gray-600 hover:text-blue-600"
-                onClick={() => setShowComments(!showComments)}
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>{commentCount} comments</span>
-              </Button>
+                <h3 className="font-semibold text-lg mb-2">{reviewTitle}</h3>
+                
+                {/* Product name and brand below title */}
+                <div className="mb-3">
+                  <p className="text-sm font-medium text-gray-800">{productName}</p>
+                  <p className="text-xs text-gray-500">{productBrand}</p>
+                </div>
+
+                <p className="text-gray-700 text-sm mb-4 line-clamp-3">
+                  {reviewContent}
+                </p>
+
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`flex items-center gap-1 ${
+                      currentVote?.vote_type === 'up' 
+                        ? 'text-blue-600 bg-blue-50' 
+                        : 'text-gray-600 hover:text-blue-600'
+                    }`}
+                    onClick={() => handleVote('up')}
+                    disabled={!isAuthenticated || loading}
+                  >
+                    <ThumbsUp className="h-4 w-4" />
+                    <span>{helpfulCount}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`flex items-center gap-1 ${
+                      currentVote?.vote_type === 'down' 
+                        ? 'text-red-600 bg-red-50' 
+                        : 'text-gray-600 hover:text-red-600'
+                    }`}
+                    onClick={() => handleVote('down')}
+                    disabled={!isAuthenticated || loading}
+                  >
+                    <ThumbsDown className="h-4 w-4" />
+                    <span>{notHelpfulCount}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center gap-1 text-gray-600 hover:text-blue-600"
+                    onClick={() => setShowComments(!showComments)}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    <span>{commentCount} comments</span>
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Product image - larger and on the right - only show if image exists */}
-          {productImage && isImageSupported(productImage) && (
+          {/* Right side - Review/Product image (full height) with carousel */}
+          {(getCurrentImage() && isImageSupported(getCurrentImage())) && (
             <div className="flex-shrink-0">
-              <div className="w-32 h-24 bg-gray-100 rounded-lg overflow-hidden">
+              <div className="relative w-48 h-64 bg-gray-100 rounded-lg overflow-hidden group">
                 <img
-                  src={productImage}
+                  src={getCurrentImage()}
                   alt={productName}
                   className="w-full h-full object-cover"
                 />
+                
+                {/* Navigation arrows - only show if multiple images */}
+                {hasMultipleImages && (
+                  <>
+                    {/* Left arrow */}
+                    <button
+                      onClick={prevImage}
+                      className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    
+                    {/* Right arrow */}
+                    <button
+                      onClick={nextImage}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                
+                {/* Dot indicators - only show if multiple images */}
+                {hasMultipleImages && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                    {reviewImages.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                          index === currentImageIndex 
+                            ? 'bg-white' 
+                            : 'bg-white bg-opacity-50 hover:bg-opacity-75'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-gray-600 mt-2 text-center max-w-32 truncate">
-                {productName}
-              </p>
             </div>
           )}
         </div>
