@@ -395,6 +395,7 @@ const Profile = () => {
                    productImage={review.product_image}
                    productName={review.product_name}
                    productBrand={review.product_brand}
+                   productId={review.product_id}
                    reviewImages={review.images}
                    helpfulCount={review.helpful_count}
                    notHelpfulCount={review.not_helpful_count || 0}

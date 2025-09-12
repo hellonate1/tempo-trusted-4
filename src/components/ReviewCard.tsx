@@ -22,6 +22,7 @@ interface ReviewCardProps {
   productImage?: string;
   productName?: string;
   productBrand?: string;
+  productId?: string;
   reviewImages?: string[];
   helpfulCount?: number;
   notHelpfulCount?: number;
@@ -57,6 +58,7 @@ const ReviewCard = ({
   productImage = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&q=80",
   productName = "Wireless Headphones",
   productBrand = "Unknown Brand",
+  productId,
   reviewImages = [],
   helpfulCount = 24,
   notHelpfulCount = 3,
@@ -343,7 +345,15 @@ const ReviewCard = ({
                 
                 {/* Product name and brand below title */}
                 <div className="mb-3">
-                  <p className="text-sm font-medium text-gray-800">{productName}</p>
+                  {productId ? (
+                    <Link to={`/product/${productId}`}>
+                      <p className="text-sm font-medium text-gray-800 hover:text-primary transition-colors cursor-pointer">
+                        {productName}
+                      </p>
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-medium text-gray-800">{productName}</p>
+                  )}
                   <p className="text-xs text-gray-500">{productBrand}</p>
                 </div>
 

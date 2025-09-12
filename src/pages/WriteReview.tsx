@@ -71,7 +71,7 @@ const WriteReview = () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .ilike('name', `%${query}%`)
+        .or(`name.ilike.%${query}%,brand.ilike.%${query}%`)
         .limit(5);
 
       if (error) {
@@ -259,8 +259,29 @@ const WriteReview = () => {
         productId = selectedProduct.id;
         console.log('Using existing product ID:', productId);
       } else {
-        // Create new product
-        console.log('Creating new product...');
+        // First, check if a product with the same name and brand already exists
+        console.log('Checking for existing product...');
+        const { data: existingProduct, error: searchError } = await supabase
+          .from('products')
+          .select('id')
+          .eq('name', finalProductName)
+          .eq('brand', brandName)
+          .single();
+
+        if (searchError && searchError.code !== 'PGRST116') {
+          // PGRST116 is "not found" error, which is expected if no product exists
+          console.error('Error searching for existing product:', searchError);
+          setError("Failed to check for existing product");
+          return;
+        }
+
+        if (existingProduct) {
+          // Product already exists, use its ID
+          productId = existingProduct.id;
+          console.log('Found existing product with ID:', productId);
+        } else {
+          // Create new product
+          console.log('Creating new product...');
         
         // Upload first image to storage if available
         let productImageUrl = null;
@@ -470,6 +491,9 @@ const WriteReview = () => {
                             onClick={() => selectProduct(product)}
                           >
                             <div className="font-medium">{product.name}</div>
+                            {product.brand && (
+                              <div className="text-sm text-gray-500">{product.brand}</div>
+                            )}
                           </button>
                         ))}
                       </div>

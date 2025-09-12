@@ -184,6 +184,7 @@ const HomePage = () => {
                   productImage={review.products?.image_url || null}
                   productName={review.products?.name || 'Unknown Product'}
                   productBrand={review.products?.brand || 'Unknown Brand'}
+                  productId={review.product_id}
                   reviewImages={review.images || []}
                   helpfulCount={review.helpful_count || 0}
                   notHelpfulCount={review.not_helpful_count || 0}
