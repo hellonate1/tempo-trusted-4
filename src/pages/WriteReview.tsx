@@ -376,7 +376,7 @@ const WriteReview = () => {
       setTimeout(() => {
         navigate(`/product/${productId}`);
       }, 2000);
-
+      }
     } catch (err) {
       console.error('Submit error:', err);
       setError("An unexpected error occurred. Please try again.");

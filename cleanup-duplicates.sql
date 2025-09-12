@@ -21,7 +21,11 @@ GROUP BY p.id, p.name, p.brand
 ORDER BY review_count DESC;
 
 -- Update all reviews to point to the first Enduris 3 product (the one with most reviews)
--- Replace 'e1403600-5e31-405b-9da0-371dd830ff2e' with the ID of the product you want to keep
+-- Replace 'e1403600-5e31-405b-9da
+
+
+
+0-371dd830ff2e' with the ID of the product you want to keep
 UPDATE reviews 
 SET product_id = 'e1403600-5e31-405b-9da0-371dd830ff2e'
 WHERE product_id = '8ae73a62-6308-42d2-92b5-a44757fdf3e4';
