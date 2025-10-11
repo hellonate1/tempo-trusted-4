@@ -31,7 +31,6 @@ interface Product {
   id: string;
   name: string;
   description?: string;
-  image_url?: string;
   brand?: string;
   category?: string;
   price?: number;
@@ -216,14 +215,9 @@ const ProductPage = () => {
     return { stars, count, percentage };
   });
 
-  // Get all product images (from product and reviews)
+  // Get all images from reviews
   const getAllImages = () => {
     const images: string[] = [];
-    
-    // Add product image if available
-    if (product?.image_url) {
-      images.push(product.image_url);
-    }
     
     // Add review images
     reviews.forEach(review => {

@@ -23,7 +23,6 @@ interface Product {
   id: string;
   name: string;
   description?: string;
-  image_url?: string;
   category?: string;
 }
 
@@ -204,6 +203,15 @@ const WriteReview = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent multiple submissions
+    if (loading) {
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     console.log('Form submission started');
     console.log('User:', user);
     console.log('Form data:', {
@@ -275,6 +283,8 @@ const WriteReview = () => {
           return;
         }
 
+        let productImageUrl = null; // Declare outside the if/else block
+        
         if (existingProduct) {
           // Product already exists, use its ID
           productId = existingProduct.id;
@@ -284,7 +294,6 @@ const WriteReview = () => {
           console.log('Creating new product...');
         
         // Upload first image to storage if available
-        let productImageUrl = null;
         if (uploadedImages.length > 0) {
           const firstImage = uploadedImages[0];
           const fileExt = firstImage.name.split('.').pop();
@@ -312,8 +321,7 @@ const WriteReview = () => {
           .insert({
             name: finalProductName,
             brand: brandName,
-            category: 'General',
-            image_url: productImageUrl
+            category: 'General'
           })
           .select()
           .single();
@@ -353,15 +361,25 @@ const WriteReview = () => {
       }
 
       // Upload images and update review with image URLs
+      let allImageUrls: string[] = [];
+      
+      // Add product image if it exists
+      if (productImageUrl) {
+        allImageUrls.push(productImageUrl);
+      }
+      
       if (uploadedImages.length > 0) {
         console.log('Uploading images...');
-        const imageUrls = await uploadImagesToStorage(reviewData.id);
-        console.log('Uploaded images:', imageUrls);
+        const uploadedImageUrls = await uploadImagesToStorage(reviewData.id);
+        console.log('Uploaded images:', uploadedImageUrls);
+        allImageUrls = [...allImageUrls, ...uploadedImageUrls];
+      }
 
-        // Update the review with the image URLs
+      // Update the review with all image URLs (product image + uploaded images)
+      if (allImageUrls.length > 0) {
         const { error: updateError } = await supabase
           .from('reviews')
-          .update({ images: imageUrls })
+          .update({ images: allImageUrls })
           .eq('id', reviewData.id);
 
         if (updateError) {
@@ -373,6 +391,7 @@ const WriteReview = () => {
       setSuccess("Review submitted successfully!");
       
       // Redirect to the product page after a short delay
+      // Keep loading state true until navigation happens
       setTimeout(() => {
         navigate(`/product/${productId}`);
       }, 2000);
@@ -380,8 +399,7 @@ const WriteReview = () => {
     } catch (err) {
       console.error('Submit error:', err);
       setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
+      setLoading(false); // Only re-enable on error
     }
   };
 

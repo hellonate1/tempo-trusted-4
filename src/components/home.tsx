@@ -39,8 +39,7 @@ const HomePage = () => {
             products (
               id,
               name,
-              brand,
-              image_url
+              brand
             )
           `)
           .order('created_at', { ascending: false })
@@ -181,7 +180,7 @@ const HomePage = () => {
                 rating={review.rating}
                   reviewTitle={review.title || ''}
                 reviewContent={review.content}
-                  productImage={review.products?.image_url || null}
+                  productImage={null}
                   productName={review.products?.name || 'Unknown Product'}
                   productBrand={review.products?.brand || 'Unknown Brand'}
                   productId={review.product_id}

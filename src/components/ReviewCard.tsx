@@ -55,7 +55,7 @@ const ReviewCard = ({
   rating = 4,
   reviewTitle = "Great product with minor flaws",
   reviewContent = "This product exceeded my expectations in many ways. The quality is excellent and it works exactly as described. However, there are a few minor issues that could be improved in future versions.",
-  productImage = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&q=80",
+  productImage,
   productName = "Wireless Headphones",
   productBrand = "Unknown Brand",
   productId,
@@ -266,12 +266,19 @@ const ReviewCard = ({
 
   // Function to check if image is supported format
   const isImageSupported = (imageUrl: string) => {
-    if (!imageUrl) return false;
+    if (!imageUrl || imageUrl.trim() === '') return false;
+    
+    // Exclude placeholder URLs
+    if (imageUrl.includes('via.placeholder.com') || 
+        imageUrl.includes('placeholder') ||
+        imageUrl.includes('placeholder.com')) {
+      return false;
+    }
+    
     const supportedFormats = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
     const lowerUrl = imageUrl.toLowerCase();
     return supportedFormats.some(format => lowerUrl.includes(format)) || 
            lowerUrl.startsWith('data:image/') ||
-           lowerUrl.includes('placeholder') ||
            lowerUrl.includes('unsplash.com');
   };
 
@@ -295,13 +302,19 @@ const ReviewCard = ({
 
   // Get the current image to display (review images take priority over product image)
   const getCurrentImage = () => {
-    if (reviewImages.length > 0) {
+    if (reviewImages && reviewImages.length > 0) {
       return reviewImages[currentImageIndex];
     }
     return productImage;
   };
 
-  const hasMultipleImages = reviewImages.length > 1;
+  const hasMultipleImages = reviewImages && reviewImages.length > 1;
+  
+  // Check if there's a valid image to display
+  const hasValidImage = () => {
+    const currentImage = getCurrentImage();
+    return currentImage && isImageSupported(currentImage);
+  };
 
   return (
     <Card className="w-full max-w-[900px] bg-white overflow-hidden">
@@ -405,7 +418,7 @@ const ReviewCard = ({
           </div>
 
           {/* Right side - Review/Product image (full height) with carousel */}
-          {(getCurrentImage() && isImageSupported(getCurrentImage())) && (
+          {hasValidImage() && (
             <div className="flex-shrink-0">
               <div className="relative w-48 h-64 bg-gray-100 rounded-lg overflow-hidden group">
                 <img

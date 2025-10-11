@@ -116,8 +116,7 @@ const Profile = () => {
             images,
             products (
               name,
-              brand,
-              image_url
+              brand
             )
           `)
           .eq('user_id', profileData.id)
@@ -133,7 +132,7 @@ const Profile = () => {
             product_id: review.product_id,
             product_name: review.products?.name || 'Unknown Product',
             product_brand: review.products?.brand || 'Unknown Brand',
-            product_image: review.products?.image_url || 'https://via.placeholder.com/150',
+            product_image: null,
             rating: review.rating,
             title: review.title,
             content: review.content,
