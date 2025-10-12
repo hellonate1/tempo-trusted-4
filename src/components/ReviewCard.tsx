@@ -6,12 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ThumbsUp, ThumbsDown, MessageSquare, Send, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ThumbsUp, ThumbsDown, MessageSquare, Send, X, ChevronLeft, ChevronRight, MoreHorizontal, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ReviewCardProps {
   reviewId?: string;
+  reviewerId?: string;
+  userId?: string; // Alternative prop name for user_id
   reviewerName?: string;
   reviewerUsername?: string;
   reviewerImage?: string;
@@ -48,9 +52,11 @@ interface Vote {
 
 const ReviewCard = ({
   reviewId,
+  reviewerId,
+  userId,
   reviewerName = "Jane Smith",
   reviewerUsername = "janesmith",
-  reviewerImage = "https://api.dicebear.com/7.x/avataaars/svg?seed=Jane",
+  reviewerImage,
   reviewDate = "May 15, 2023",
   rating = 4,
   reviewTitle = "Great product with minor flaws",
@@ -72,6 +78,8 @@ const ReviewCard = ({
   const [loading, setLoading] = useState(false);
   const [commentLoading, setCommentLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Load user's current vote
   useEffect(() => {
@@ -264,6 +272,34 @@ const ReviewCard = ({
     }
   };
 
+  const handleDeleteReview = async () => {
+    if (!reviewId || !user) return;
+    
+    setDeleteLoading(true);
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('user_id', user.id); // Ensure user can only delete their own reviews
+      
+      if (error) {
+        console.error('Error deleting review:', error);
+        alert(`Error deleting review: ${error.message}`);
+      } else {
+        // Review deleted successfully - the parent component should handle refreshing the list
+        setShowDeleteDialog(false);
+        // You might want to emit an event or call a callback here to refresh the parent
+        window.location.reload(); // Simple solution for now
+      }
+    } catch (err) {
+      console.error('Error deleting review:', err);
+      alert(`Error deleting review: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   // Function to check if image is supported format
   const isImageSupported = (imageUrl: string) => {
     if (!imageUrl || imageUrl.trim() === '') return false;
@@ -327,7 +363,7 @@ const ReviewCard = ({
               <div className="flex flex-col items-center flex-shrink-0">
                 <Link to={`/profile/${reviewerUsername}`}>
                   <Avatar className="h-12 w-12 hover:opacity-80 transition-opacity cursor-pointer">
-                    <AvatarImage src={reviewerImage} alt={reviewerName} />
+                    <AvatarImage src={reviewerImage || undefined} alt={reviewerName} />
                     <AvatarFallback>{reviewerName.substring(0, 2)}</AvatarFallback>
                   </Avatar>
                 </Link>
@@ -340,18 +376,40 @@ const ReviewCard = ({
 
               {/* Review header */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <span
-                        key={i}
-                        className={`text-lg ${i < rating ? "text-yellow-500" : "text-gray-300"}`}
-                      >
-                        ★
-                      </span>
-                    ))}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={`text-lg ${i < rating ? "text-yellow-500" : "text-gray-300"}`}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-500">{reviewDate}</span>
                   </div>
-                  <span className="text-sm text-gray-500">{reviewDate}</span>
+                  
+                  {/* Three dots menu - only show if user is the owner */}
+                  {user && (reviewerId || userId) && user.id === (reviewerId || userId) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={() => setShowDeleteDialog(true)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Review
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 <h3 className="font-semibold text-lg mb-2">{reviewTitle}</h3>
@@ -544,6 +602,32 @@ const ReviewCard = ({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Review</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this review? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteReview}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

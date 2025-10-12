@@ -89,8 +89,8 @@ const Profile = () => {
         // Set profile data (auth metadata will be available if user is viewing their own profile)
         setProfile({
           ...profileData,
-          avatar_url: currentUser?.id === profileData.id ? currentUser.user_metadata?.avatar_url : undefined,
-          full_name: currentUser?.id === profileData.id ? currentUser.user_metadata?.full_name : profileData.username,
+          avatar_url: profileData.avatar_url, // Use avatar_url from database
+          full_name: profileData.username, // Always use the chosen username, not Google display name
           location: currentUser?.id === profileData.id ? currentUser.user_metadata?.location || 'Location not set' : 'Location not set',
           follower_count: followerCountResult.data || 0,
           following_count: followingCountResult.data || 0,
@@ -105,6 +105,7 @@ const Profile = () => {
           .from('reviews')
           .select(`
             id,
+            user_id,
             product_id,
             rating,
             title,
@@ -129,6 +130,7 @@ const Profile = () => {
         } else {
           const formattedReviews = reviewsData?.map(review => ({
             id: review.id,
+            user_id: review.user_id,
             product_id: review.product_id,
             product_name: review.products?.name || 'Unknown Product',
             product_brand: review.products?.brand || 'Unknown Brand',
@@ -384,6 +386,7 @@ const Profile = () => {
                  <ReviewCard
                    key={review.id}
                    reviewId={review.id}
+                   userId={review.user_id}
                    reviewerName={profile.full_name || profile.username}
                    reviewerUsername={profile.username}
                    reviewerImage={profile.avatar_url}

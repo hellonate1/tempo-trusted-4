@@ -51,8 +51,8 @@ const HomePage = () => {
         }
 
         console.log('Fetched recent reviews:', data);
+        console.log('First review structure:', data?.[0]);
         console.log('First review user_id:', data?.[0]?.user_id);
-        console.log('First review full object:', data?.[0]);
         
         // Fetch user data for each review
         if (data && data.length > 0) {
@@ -174,8 +174,10 @@ const HomePage = () => {
               <ReviewCard 
                 key={review.id} 
                   reviewId={review.id}
+                  userId={review.user_id}
                   reviewerName={review.users?.full_name || review.users?.username || 'Anonymous'}
-                  reviewerImage={review.users?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${review.users?.username || 'user'}`}
+                  reviewerUsername={review.users?.username || 'anonymous'}
+                  reviewerImage={review.users?.avatar_url}
                   reviewDate={new Date(review.created_at).toLocaleDateString()}
                 rating={review.rating}
                   reviewTitle={review.title || ''}

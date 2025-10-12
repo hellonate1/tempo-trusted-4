@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import ReviewCard from "@/components/ReviewCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -59,72 +60,6 @@ interface ReviewCardProps {
   review: Review;
 }
 
-const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  return (
-    <Card className="bg-white">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center">
-            <Avatar className="h-10 w-10 mr-3">
-              <AvatarFallback>{review.users.username.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="font-medium">{review.users.username}</div>
-              <div className="text-sm text-gray-500">{formatDate(review.created_at)}</div>
-            </div>
-          </div>
-          <div className="flex">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`h-4 w-4 ${star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="mt-4">
-          <h3 className="font-bold text-lg">{review.title}</h3>
-          <p className="mt-2 text-gray-700">{review.content}</p>
-        </div>
-        {review.images && review.images.length > 0 && (
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
-            {review.images.map((image, index) => (
-              <div key={index} className="h-20 w-full rounded-md overflow-hidden">
-                <img
-                  src={image}
-                  alt={`Review ${index + 1}`}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="mt-4 flex items-center space-x-4 text-sm">
-          <button className="flex items-center text-gray-500 hover:text-gray-700">
-            <ThumbsUp className="h-4 w-4 mr-1" />
-            <span>Helpful ({review.helpful_count})</span>
-          </button>
-          <button className="flex items-center text-gray-500 hover:text-gray-700">
-            <ThumbsDown className="h-4 w-4 mr-1" />
-            <span>Not Helpful (0)</span>
-          </button>
-          <button className="flex items-center text-gray-500 hover:text-gray-700">
-            <MessageSquare className="h-4 w-4 mr-1" />
-            <span>Comment ({review.comment_count})</span>
-          </button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
 
 const ProductPage = () => {
   const { id } = useParams();
@@ -181,7 +116,7 @@ const ProductPage = () => {
           (reviewsData || []).map(async (review) => {
             const { data: userData, error: userError } = await supabase
               .from('users')
-              .select('username, bio')
+              .select('username, bio, avatar_url')
               .eq('id', review.user_id)
               .single();
 
@@ -281,7 +216,7 @@ const ProductPage = () => {
       // Fetch user data for the new review
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('username, bio')
+        .select('username, bio, avatar_url')
         .eq('id', newReview.user_id)
         .single();
 
@@ -463,7 +398,26 @@ const ProductPage = () => {
             {/* Reviews List */}
             <div className="space-y-6">
               {reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
+                <ReviewCard 
+                  key={review.id}
+                  reviewId={review.id}
+                  userId={review.user_id}
+                  reviewerName={review.users?.username || 'Anonymous'}
+                  reviewerUsername={review.users?.username || 'anonymous'}
+                  reviewerImage={review.users?.avatar_url}
+                  reviewDate={new Date(review.created_at).toLocaleDateString()}
+                  rating={review.rating}
+                  reviewTitle={review.title || ''}
+                  reviewContent={review.content}
+                  productImage={null}
+                  productName={product?.name || 'Unknown Product'}
+                  productBrand={product?.brand || 'Unknown Brand'}
+                  productId={product?.id}
+                  reviewImages={review.images || []}
+                  helpfulCount={review.helpful_count || 0}
+                  notHelpfulCount={review.not_helpful_count || 0}
+                  commentCount={review.comment_count || 0}
+                />
               ))}
             </div>
           </div>

@@ -180,6 +180,7 @@ const EditProfile: React.FC<EditProfileProps> = ({
         .update({
           username: formData.username,
           bio: formData.bio,
+          avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
