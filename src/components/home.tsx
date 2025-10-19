@@ -28,6 +28,7 @@ const HomePage = () => {
           .select(`
             id,
             user_id,
+            product_id,
             title,
             content,
             rating,
@@ -50,23 +51,18 @@ const HomePage = () => {
           return;
         }
 
-        console.log('Fetched recent reviews:', data);
-        console.log('First review structure:', data?.[0]);
-        console.log('First review user_id:', data?.[0]?.user_id);
         
         // Fetch user data for each review
         if (data && data.length > 0) {
           const reviewsWithUsers = await Promise.all(
             data.map(async (review) => {
-              console.log('Fetching user data for review:', review.id, 'user_id:', review.user_id);
               
               const { data: userData, error: userError } = await supabase
                 .from('users')
-                .select('id, username, bio')
+                .select('id, username, bio, full_name, avatar_url')
                 .eq('id', review.user_id)
                 .single();
               
-              console.log('User data result:', { userData, userError });
               
               if (userError) {
                 console.error('Error fetching user data for user_id:', review.user_id, userError);
@@ -81,17 +77,15 @@ const HomePage = () => {
                 };
               }
               
-              // Use the same logic as Profile page for avatar_url
-              const isCurrentUser = currentUser?.id === userData.id;
-              const avatarUrl = isCurrentUser ? currentUser.user_metadata?.avatar_url : null;
-              const fullName = isCurrentUser ? currentUser.user_metadata?.full_name : userData.username;
+              // Use database avatar_url for all users
+              const avatarUrl = userData.avatar_url;
               
               return {
                 ...review,
                 users: {
                   id: userData.id,
                   username: userData.username,
-                  full_name: fullName || userData.username,
+                  full_name: userData.full_name,
                   avatar_url: avatarUrl
                 }
               };
@@ -138,10 +132,14 @@ const HomePage = () => {
             products across all categories.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button size="lg">Explore Reviews</Button>
-            <Button size="lg" variant="outline">
-              Join Community
-            </Button>
+            <Link to="/explore-reviews">
+              <Button size="lg">Explore Reviews</Button>
+            </Link>
+            <Link to="/write-review">
+              <Button size="lg" variant="outline">
+                Join Community
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -153,7 +151,7 @@ const HomePage = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Recent Product Reviews</h2>
             <Link
-              to="/reviews"
+              to="/explore-reviews"
               className="text-sm text-primary flex items-center hover:underline"
             >
               View all <ChevronRight className="h-4 w-4 ml-1" />
@@ -175,7 +173,7 @@ const HomePage = () => {
                 key={review.id} 
                   reviewId={review.id}
                   userId={review.user_id}
-                  reviewerName={review.users?.full_name || review.users?.username || 'Anonymous'}
+                  reviewerName={review.users?.username || review.users?.full_name || 'Anonymous'}
                   reviewerUsername={review.users?.username || 'anonymous'}
                   reviewerImage={review.users?.avatar_url}
                   reviewDate={new Date(review.created_at).toLocaleDateString()}

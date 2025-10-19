@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Star, Upload, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
+import heic2any from "heic2any";
 
 interface ReviewFormProps {
   productId?: string;
@@ -40,20 +43,95 @@ const ReviewForm = ({
   onSubmit = () => {},
   onCancel = () => {},
 }: ReviewFormProps) => {
+  const { user } = useAuth();
   const [title, setTitle] = useState(initialData.title);
   const [content, setContent] = useState(initialData.content);
   const [rating, setRating] = useState(initialData.rating);
   const [images, setImages] = useState<string[]>(initialData.images);
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newImages = Array.from(e.target.files).map((file) => {
-        // In a real app, we would upload to a server and get back URLs
-        // For now, create object URLs for preview
-        return URL.createObjectURL(file);
-      });
-      setImages([...images, ...newImages]);
+  // Debug: Log when images state changes
+  useEffect(() => {
+    console.log('Images state updated:', images);
+  }, [images]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !user) {
+      console.log('No files or user:', { files: e.target.files, user });
+      return;
+    }
+    
+    console.log('Starting image upload...');
+    setUploading(true);
+    const files = Array.from(e.target.files);
+    const uploadedUrls: string[] = [];
+
+    try {
+      for (const file of files) {
+        console.log('Uploading file:', file.name, file.size);
+        
+        // Convert HEIC to JPEG if needed
+        let fileToUpload = file;
+        let fileExt = file.name.split('.').pop()?.toLowerCase();
+        
+        if (fileExt === 'heic' || fileExt === 'heif') {
+          console.log('Converting HEIC to JPEG...');
+          try {
+            const convertedBlob = await heic2any({
+              blob: file,
+              toType: 'image/jpeg',
+              quality: 0.8
+            }) as Blob;
+
+            fileToUpload = new File([convertedBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+              type: 'image/jpeg'
+            });
+            fileExt = 'jpg';
+            console.log('HEIC conversion successful');
+          } catch (conversionError) {
+            console.error('HEIC conversion failed:', conversionError);
+            continue; // Skip this file if conversion fails
+          }
+        }
+        
+        // Create unique filename
+        const fileName = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = fileName; // Remove the review-images/ prefix since bucket is already review-images
+
+        console.log('Uploading to path:', filePath);
+
+        // Use review-images bucket (which exists in your Supabase)
+        const bucketName = 'review-images';
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, fileToUpload);
+
+        if (error) {
+          console.error('Upload error:', error);
+          continue;
+        }
+
+        console.log('Upload successful:', data);
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucketName)
+          .getPublicUrl(filePath);
+
+        console.log('Public URL:', publicUrl);
+        uploadedUrls.push(publicUrl);
+      }
+
+      console.log('All uploads complete, setting images:', uploadedUrls);
+      console.log('Current images before update:', images);
+      const newImages = [...images, ...uploadedUrls];
+      console.log('New images array:', newImages);
+      setImages(newImages);
+    } catch (error) {
+      console.error('Error uploading images:', error);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -137,10 +215,19 @@ const ReviewForm = ({
             <div className="flex items-center">
               <label
                 htmlFor="image-upload"
-                className="flex items-center justify-center w-24 h-24 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-gray-400"
+                className={`flex items-center justify-center w-24 h-24 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-gray-400 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <Upload className="w-6 h-6 text-gray-400" />
-                <span className="sr-only">Upload images</span>
+                {uploading ? (
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 mx-auto"></div>
+                    <span className="text-xs text-gray-500 mt-1">Uploading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-6 h-6 text-gray-400" />
+                    <span className="sr-only">Upload images</span>
+                  </>
+                )}
               </label>
               <input
                 id="image-upload"
@@ -148,6 +235,7 @@ const ReviewForm = ({
                 multiple
                 accept="image/*"
                 onChange={handleImageUpload}
+                disabled={uploading}
                 className="hidden"
               />
             </div>
@@ -180,8 +268,8 @@ const ReviewForm = ({
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!rating || !title || !content}>
-            Submit Review
+          <Button type="submit" disabled={!rating || !title || !content || uploading}>
+            {uploading ? "Uploading..." : "Submit Review"}
           </Button>
         </CardFooter>
       </form>

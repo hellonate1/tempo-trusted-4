@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import heic2any from "heic2any";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,13 +96,31 @@ const EditProfile: React.FC<EditProfileProps> = ({
 
   const uploadAvatar = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
+      let fileToUpload = file;
+      let fileExt = file.name.split('.').pop()?.toLowerCase();
+      
+      // Convert HEIC to JPEG if needed
+      if (fileExt === 'heic' || fileExt === 'heif') {
+        console.log('Converting HEIC file:', file.name);
+        
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.8
+        }) as Blob;
+        
+        fileToUpload = new File([convertedBlob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), {
+          type: 'image/jpeg'
+        });
+        fileExt = 'jpg';
+      }
+      
       const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) {
         throw uploadError;

@@ -387,7 +387,7 @@ const Profile = () => {
                    key={review.id}
                    reviewId={review.id}
                    userId={review.user_id}
-                   reviewerName={profile.full_name || profile.username}
+                   reviewerName={profile.username || profile.full_name}
                    reviewerUsername={profile.username}
                    reviewerImage={profile.avatar_url}
                    reviewDate={formatDate(review.created_at)}

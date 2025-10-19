@@ -13,11 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Filter,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReviewCard from "@/components/ReviewCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -67,12 +69,35 @@ const ProductPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("description");
   const [reviewSort, setReviewSort] = useState("newest");
+
+  const sortReviews = (reviews: Review[], sortType: string) => {
+    const sortedReviews = [...reviews];
+    
+    switch (sortType) {
+      case "newest":
+        return sortedReviews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      case "oldest":
+        return sortedReviews.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      case "rating-high":
+        return sortedReviews.sort((a, b) => b.rating - a.rating);
+      case "rating-low":
+        return sortedReviews.sort((a, b) => a.rating - b.rating);
+      default:
+        return sortedReviews;
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [brokenImages, setBrokenImages] = useState<Set<number>>(new Set());
+
+  const handleImageError = (index: number) => {
+    setBrokenImages(prev => new Set([...prev, index]));
+  };
 
   // Fetch product and reviews data
   useEffect(() => {
@@ -226,7 +251,12 @@ const ProductPage = () => {
       };
 
       // Add the new review to the list
+      console.log('New review with images:', reviewWithUser);
+      console.log('Review images:', reviewWithUser.images);
       setReviews(prev => [reviewWithUser, ...prev]);
+      
+      // Close the modal after successful submission
+      setShowReviewModal(false);
     } catch (err) {
       console.error('Error submitting review:', err);
     }
@@ -276,12 +306,13 @@ const ProductPage = () => {
             <div className="space-y-4">
               {/* Main Image */}
               <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                {allImages.length > 0 ? (
+                {allImages.length > 0 && !brokenImages.has(currentImageIndex) ? (
                   <img
                     src={allImages[currentImageIndex]}
-                    alt={product.name}
+                    alt=""
                     className="h-full w-full object-cover object-center cursor-pointer"
                     onClick={() => setShowImageModal(true)}
+                    onError={() => handleImageError(currentImageIndex)}
                   />
                 ) : (
                   <div className="h-full w-full flex items-center justify-center">
@@ -293,21 +324,24 @@ const ProductPage = () => {
               {/* Thumbnail Images */}
               {allImages.length > 1 && (
                 <div className="flex space-x-2 overflow-x-auto">
-                  {allImages.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 ${
-                        index === currentImageIndex ? 'border-primary' : 'border-gray-200'
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt={`${product.name} ${index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  ))}
+                  {allImages.map((image, index) => 
+                    !brokenImages.has(index) ? (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 ${
+                          index === currentImageIndex ? 'border-primary' : 'border-gray-200'
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={() => handleImageError(index)}
+                        />
+                      </button>
+                    ) : null
+                  )}
                 </div>
               )}
             </div>
@@ -355,7 +389,25 @@ const ProductPage = () => {
         {/* Reviews Section */}
         {reviews.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-6">Customer Reviews</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold">Customer Reviews</h2>
+              
+              {/* Filter Dropdown */}
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <Select value={reviewSort} onValueChange={setReviewSort}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Most Recent</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="rating-high">Highest Rating</SelectItem>
+                    <SelectItem value="rating-low">Lowest Rating</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             
             {/* Rating Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
@@ -397,7 +449,7 @@ const ProductPage = () => {
 
             {/* Reviews List */}
             <div className="space-y-6">
-              {reviews.map((review) => (
+              {sortReviews(reviews, reviewSort).map((review) => (
                 <ReviewCard 
                   key={review.id}
                   reviewId={review.id}
@@ -430,15 +482,15 @@ const ProductPage = () => {
               {reviews.length > 0 ? 'All Reviews' : 'Be the first to review this product'}
             </h3>
             {user && (
-              <Dialog>
+              <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
                 <DialogTrigger asChild>
-                  <Button>Write a Review</Button>
+                  <Button onClick={() => setShowReviewModal(true)}>Write a Review</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[800px]">
                   <ReviewForm
                     productId={product.id}
                     onSubmit={handleReviewSubmit}
-                    onCancel={() => {}}
+                    onCancel={() => setShowReviewModal(false)}
                   />
                 </DialogContent>
               </Dialog>
@@ -455,7 +507,7 @@ const ProductPage = () => {
         </div>
 
         {/* Image Modal */}
-        {showImageModal && allImages.length > 0 && (
+        {showImageModal && allImages.length > 0 && !brokenImages.has(currentImageIndex) && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
             <div className="relative max-w-4xl max-h-[90vh] p-4">
               <button
@@ -467,8 +519,12 @@ const ProductPage = () => {
               
               <img
                 src={allImages[currentImageIndex]}
-                alt={product.name}
+                alt=""
                 className="max-w-full max-h-full object-contain"
+                onError={() => {
+                  handleImageError(currentImageIndex);
+                  setShowImageModal(false);
+                }}
               />
               
               {allImages.length > 1 && (

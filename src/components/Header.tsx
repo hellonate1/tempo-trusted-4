@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Search, User, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -16,7 +16,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const Header = () => {
   const { user, signOut, isAuthenticated, loading: authLoading } = useAuth();
-  const [userProfile, setUserProfile] = useState<{ username: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ username: string; avatar_url?: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -24,7 +26,7 @@ const Header = () => {
         try {
           const { data: profile, error } = await supabase
             .from('users')
-            .select('username')
+            .select('username, avatar_url')
             .eq('id', user.id)
             .single();
 
@@ -44,6 +46,17 @@ const Header = () => {
     fetchUserProfile();
   }, [user, isAuthenticated]);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
   return (
     <>
       {/* Header/Navigation */}
@@ -56,14 +69,16 @@ const Header = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="relative w-64 hidden md:block">
+            <form onSubmit={handleSearch} className="relative w-64 hidden md:block">
               <Input
                 type="text"
                 placeholder="Search products..."
                 className="pr-8"
+                value={searchQuery}
+                onChange={handleSearchInputChange}
               />
               <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            </div>
+            </form>
             {!authLoading && isAuthenticated ? (
               <>
                 <Link to="/write-review">
@@ -79,7 +94,7 @@ const Header = () => {
                       className="rounded-full"
                     >
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user?.user_metadata?.avatar_url} />
+                        <AvatarImage src={userProfile?.avatar_url} />
                         <AvatarFallback>
                           {user?.user_metadata?.full_name?.charAt(0) ||
                             user?.email?.charAt(0) ||
